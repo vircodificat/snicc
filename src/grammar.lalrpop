@@ -1,0 +1,115 @@
+use bstr::BString;
+
+use crate::lexer::Token;
+use crate::lexer::LexicalError;
+use crate::ast;
+
+grammar;
+
+extern {
+    type Location = usize;
+    type Error = LexicalError;
+
+    enum Token {
+        "var" => Token::KwVar,
+        "print" => Token::KwPrint,
+        "identifier" => Token::Identifier(<BString>),
+        "int" => Token::Integer(<i64>),
+        "fn" => Token::KwFn,
+        "return" => Token::KwReturn,
+        "{" => Token::LCurly,
+        "}" => Token::RCurly,
+        "(" => Token::LParen,
+        ")" => Token::RParen,
+        "=" => Token::Assign,
+        ";" => Token::Semicolon,
+        "+" => Token::Plus,
+        "-" => Token::Minus,
+        "*" => Token::Mul,
+        "/" => Token::Div,
+    }
+}
+
+pub Program: ast::Program = {
+    <decls:Declaration*> => ast::Program {
+        decls,
+    },
+}
+
+Declaration: ast::Declaration = {
+    "fn" <name:"identifier"> "(" ")" "{"
+        <stmts:Statement*>
+    "}" => {
+        ast::Declaration::Fn(ast::FuncDecl {
+            name,
+            stmts,
+        })
+    },
+}
+
+Statement: ast::Statement = {
+    "var" <name:"identifier"> "=" <expr:Expr> ";" => {
+        ast::Statement::Variable { name, expr }
+    },
+    "print" <expr:Expr> ";" => {
+        ast::Statement::Print { expr }
+    },
+    "return" <expr:Expr> ";" => {
+        ast::Statement::Ret(expr)
+    },
+    <expr:Expr> ";" => {
+        ast::Statement::Expr(expr)
+    },
+}
+
+Expr: Box<ast::Expr> = {
+    #[precedence(level="1")]
+    Term,
+
+    #[precedence(level="2")] #[assoc(side="left")]
+    <lhs:Expr> "*" <rhs:Expr> => {
+        Box::new(ast::Expr::BinaryOperation {
+            lhs,
+            operator: ast::Operator::Mul,
+            rhs
+        })
+    },
+    <lhs:Expr> "/" <rhs:Expr> => {
+        Box::new(ast::Expr::BinaryOperation {
+            lhs,
+            operator: ast::Operator::Div,
+            rhs
+        })
+    },
+
+    #[precedence(level="3")] #[assoc(side="left")]
+    <lhs:Expr> "+" <rhs:Expr> => {
+        Box::new(ast::Expr::BinaryOperation {
+            lhs,
+            operator: ast::Operator::Add,
+            rhs
+        })
+    },
+    <lhs:Expr> "-" <rhs:Expr> => {
+        Box::new(ast::Expr::BinaryOperation {
+            lhs,
+            operator: ast::Operator::Sub,
+            rhs
+        })
+    },
+}
+
+Term: Box<ast::Expr> = {
+    <val:"int"> => {
+        Box::new(ast::Expr::LitI64(val))
+    },
+    <name:"identifier"> => {
+        Box::new(ast::Expr::Variable(name))
+    },
+    <fnname:"identifier"> "(" ")" => {
+        Box::new(ast::Expr::Call {
+            fnname,
+        })
+    },
+    "(" <Expr> ")",
+}

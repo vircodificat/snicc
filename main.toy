@@ -1,0 +1,9 @@
+fn main() {
+    var result = six();
+    print result;
+    return result;
+}
+
+fn six() {
+    return 6;
+}
