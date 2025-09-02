@@ -44,7 +44,7 @@ pub enum Expr {
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub enum Operator {
     Add,
     Sub,

@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::tac;
+use crate::{ast::Operator, tac};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 struct FnIdx(usize);
@@ -123,6 +123,19 @@ impl<'a> TacVm<'a> {
                 let frame = &mut self.stack.last_mut().unwrap();
                 let val = frame.ssa_value.get(ssa).unwrap();
                 println!("{val:?}");
+                self.advance_pc();
+            }
+            tac::Instr::BinOp(dst, op, lhs_ssa, rhs_ssa) => {
+                let frame = &mut self.stack.last_mut().unwrap();
+                let Value::I64(lhs_val) = frame.ssa_value.get(lhs_ssa).unwrap().clone() else { panic!() };
+                let Value::I64(rhs_val) = frame.ssa_value.get(rhs_ssa).unwrap().clone() else { panic!() };
+                let result_val = Value::I64(match op {
+                    Operator::Add => lhs_val + rhs_val,
+                    Operator::Sub => lhs_val - rhs_val,
+                    Operator::Mul => lhs_val * rhs_val,
+                    Operator::Div => lhs_val / rhs_val,
+                });
+                frame.ssa_value.insert(*dst, result_val);
                 self.advance_pc();
             }
         }

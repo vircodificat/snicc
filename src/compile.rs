@@ -98,7 +98,13 @@ impl Compiler {
                 self.instrs.push(Instr::Load(ssa, variable_ssa));
                 ssa
             }
-            ast::Expr::BinaryOperation { lhs, operator, rhs } => todo!(),
+            ast::Expr::BinaryOperation { lhs, operator, rhs } => {
+                let ssa = self.gensym();
+                let lhs_ssa = self.compile_expr(lhs);
+                let rhs_ssa = self.compile_expr(rhs);
+                self.instrs.push(Instr::BinOp(ssa, *operator, lhs_ssa, rhs_ssa));
+                ssa
+            }
             ast::Expr::Call { fnname } => {
                 let ssa = self.gensym();
                 self.instrs.push(Instr::Call(ssa, fnname.clone()));

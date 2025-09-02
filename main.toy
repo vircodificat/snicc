@@ -1,6 +1,6 @@
 fn main() {
     var result = six();
-    print result;
+    print result + 1;
     return result;
 }
 

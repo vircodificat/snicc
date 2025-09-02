@@ -1,5 +1,7 @@
-use std::io::Write;
 use bstr::{BStr, BString};
+use std::io::Write;
+
+use crate::ast::Operator;
 
 #[derive(Debug)]
 pub struct Program {
@@ -21,10 +23,11 @@ pub enum Instr {
     Load(Ssa, Ssa),
     Store(Ssa, Ssa),
     Print(Ssa),
+    BinOp(Ssa, Operator, Ssa, Ssa),
 }
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash, PartialOrd, Ord)]
-pub struct Ssa(pub u32); 
+pub struct Ssa(pub u32);
 
 #[derive(Debug)]
 pub enum Op {
@@ -50,9 +53,7 @@ impl Program {
         for func in self.funcs {
             funcs.push(func.resolve());
         }
-        Program {
-            funcs,
-        }
+        Program { funcs }
     }
 
     pub(crate) fn func(&self, name: &BStr) -> &Func {
@@ -79,7 +80,7 @@ impl std::fmt::Display for Instr {
             Instr::Ret(v) =>                  write!(f, "RET    {v}"),
             Instr::Const(dst, v) =>           write!(f, "CONST  {dst}, {v}"),
             Instr::Alloca(ssa, size, name) => {
-                                                      write!(f, "ALLOCA {ssa}, {size}", )?;
+                                              write!(f, "ALLOCA {ssa}, {size}", )?;
                         if let Some(name_hint) = name {
                             write!(f, " ({name_hint})")?;
                         }
@@ -88,6 +89,10 @@ impl std::fmt::Display for Instr {
             Instr::Load(dst, addr) =>         write!(f, "LOAD   {dst}, ({addr})"),
             Instr::Store(src, addr) =>        write!(f, "STORE  {src}, ({addr})"),
             Instr::Print(ssa) =>              write!(f, "PRINT  {ssa}"),
+            Instr::BinOp(ssa, operator, lhs, rhs) => {
+                let op_name = format!("{operator:?}").to_uppercase();
+                                              write!(f, "{op_name} {ssa}, {lhs}, {rhs}", )
+            }
         }
     }
 }
