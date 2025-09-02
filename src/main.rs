@@ -17,6 +17,9 @@ lalrpop_mod!(grammar);
 
 fn main() -> anyhow::Result<()> {
     let source_code = std::fs::read_to_string("main.toy")?;
+    println!("{source_code}");
+    println!();
+
     let lexer = Lexer::new(&source_code);
     let parser = ProgramParser::new();
     let ast = parser
@@ -28,6 +31,7 @@ fn main() -> anyhow::Result<()> {
     let mut f = std::io::stdout();
     let tac = compile::compile(&ast);
     tac.pprint(&mut f);
+    println!();
 
     let mut vm = tac_vm::TacVm::new(&tac);
     vm.run();

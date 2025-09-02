@@ -91,7 +91,7 @@ impl std::fmt::Display for Instr {
             Instr::Print(ssa) =>              write!(f, "PRINT  {ssa}"),
             Instr::BinOp(ssa, operator, lhs, rhs) => {
                 let op_name = format!("{operator:?}").to_uppercase();
-                                              write!(f, "{op_name} {ssa}, {lhs}, {rhs}", )
+                                              write!(f, "{op_name:<7}{ssa}, {lhs}, {rhs}", )
             }
         }
     }
