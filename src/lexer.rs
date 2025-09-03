@@ -4,7 +4,7 @@ use logos::SpannedIter;
 
 #[rustfmt::skip]
 #[derive(Logos, Clone, Debug, PartialEq)]
-#[logos(skip r"[ \t\n\f]+", skip r"#.*\n?", error = LexicalError)]
+#[logos(skip r"[ \t\n\f]+", skip r"//.*\n?", error = LexicalError)]
 pub enum Token {
     #[token("fn")] KwFn,
     #[token("var")] KwVar,
@@ -27,6 +27,7 @@ pub enum Token {
     #[token("==")] EqEq,
     #[token("=")] Eq,
     #[token(";")] Semicolon,
+    #[token(",")] Comma,
 
     #[token("+")] Plus,
     #[token("-")] Minus,

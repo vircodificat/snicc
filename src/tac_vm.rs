@@ -11,6 +11,8 @@ struct InstrIdx(usize);
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 struct Pc(FnIdx, BlockIdx, InstrIdx);
 
+const DEBUG: bool = false;
+
 #[derive(Debug)]
 pub struct TacVm<'a> {
     pc: Pc,
@@ -25,7 +27,7 @@ pub struct TacVm<'a> {
 pub struct StackFrame {
     return_pc: Pc,
     return_ssa: tac::Ssa,
-    ssa_value: HashMap<tac::Ssa, Value>,
+    ssa_values: HashMap<tac::Ssa, Value>,
     locals: Vec<Value>,
 }
 
@@ -41,7 +43,7 @@ impl<'a> TacVm<'a> {
         let main_frame = StackFrame {
             return_pc: Pc::no_return(),
             return_ssa: tac::Ssa(0),
-            ssa_value: HashMap::new(),
+            ssa_values: HashMap::new(),
             locals: vec![],
         };
 
@@ -51,8 +53,28 @@ impl<'a> TacVm<'a> {
             stack: vec![main_frame],
             halted: false,
             trapped: false,
-            debug: false,
+            debug: DEBUG,
         }
+    }
+
+    fn ssa_value(&self, ssa: tac::Ssa) -> Value {
+        let frame = &mut self.stack.last().unwrap();
+        *frame.ssa_values.get(&ssa).unwrap()
+    }
+
+    fn ssa_set_value(&mut self, ssa: tac::Ssa, value: Value) {
+        let frame = &mut self.stack.last_mut().unwrap();
+        let old_value = frame.ssa_values.insert(ssa, value);
+        if old_value.is_some() {
+            self.trap();
+        }
+    }
+
+    fn alloca(&mut self, size: u8) -> Value {
+        let frame = &mut self.stack.last_mut().unwrap();
+        let addr = Value::Addr(frame.locals.len());
+        frame.locals.push(Value::Uninitialized);
+        addr
     }
 
     pub fn step(&mut self) {
@@ -63,13 +85,11 @@ impl<'a> TacVm<'a> {
 
         match instr {
             tac::Instr::Alloca(ssa, size, bstring) => {
-                let frame = &mut self.stack.last_mut().unwrap();
-                let addr = Value::Addr(frame.locals.len());
-                frame.locals.push(Value::Uninitialized);
-                frame.ssa_value.insert(*ssa, addr);
+                let value = self.alloca(*size);
+                self.ssa_set_value(*ssa, value);
                 self.advance_pc();
             }
-            tac::Instr::Call(ssa, fnname) => {
+            tac::Instr::Call(ssa, fnname, arg_ssas) => {
                 let func_idx = 'result: {
                     for (i, func) in self.program.funcs.iter().enumerate() {
                         if func.name == *fnname {
@@ -78,11 +98,17 @@ impl<'a> TacVm<'a> {
                     }
                     return self.trap();
                 };
+                let callee_func = &self.program.funcs[func_idx.0];
+                let mut ssa_values = HashMap::new();
+                for (i, (param, arg_ssa)) in callee_func.params().into_iter().zip(arg_ssas.iter()).enumerate() {
+                    let val = self.ssa_value(*arg_ssa);
+                    ssa_values.insert(param.ssa, val);
+                }
 
                 let frame = StackFrame {
                     return_pc: self.pc.next(),
                     return_ssa: *ssa,
-                    ssa_value: HashMap::new(),
+                    ssa_values,
                     locals: vec![],
                 };
                 self.stack.push(frame);
@@ -96,52 +122,54 @@ impl<'a> TacVm<'a> {
                 let frame = &self.stack.last_mut().unwrap();
                 self.pc = frame.return_pc;
                 let return_ssa = frame.return_ssa;
-                let return_val = *frame.ssa_value.get(ssa).unwrap();
+                let return_val = *frame.ssa_values.get(ssa).unwrap();
+                self.pc = frame.return_pc;
                 self.stack.pop();
 
                 if let Some(frame) = &mut self.stack.last_mut() {
-                    frame.ssa_value.insert(return_ssa, return_val);
+                    frame.ssa_values.insert(return_ssa, return_val);
                 } else {
                     self.halted = true;
                 }
             }
             tac::Instr::Const(ssa, val) => {
                 let frame = &mut self.stack.last_mut().unwrap();
-                frame.ssa_value.insert(*ssa, Value::I64(*val));
+                frame.ssa_values.insert(*ssa, Value::I64(*val));
                 self.advance_pc();
             }
             tac::Instr::Store(src, addr) => {
                 let frame = &mut self.stack.last_mut().unwrap();
-                let Value::Addr(addr) = *frame.ssa_value.get(addr).unwrap() else {
+                let Value::Addr(addr) = *frame.ssa_values.get(addr).unwrap() else {
                     return self.trap();
                 };
-                let val = *frame.ssa_value.get(src).unwrap();
+                let val = *frame.ssa_values.get(src).unwrap();
                 frame.locals[addr] = val;
 
                 self.advance_pc();
             }
-            tac::Instr::Load(dst, addr) => {
-                let frame = &mut self.stack.last_mut().unwrap();
-                let Value::Addr(addr) = *frame.ssa_value.get(addr).unwrap() else {
+            tac::Instr::Load(dst, addr_ssa) => {
+                let addr = self.ssa_value(*addr_ssa);
+                let Value::Addr(addr) = addr else {
                     return self.trap();
                 };
+                let frame = &mut self.stack.last_mut().unwrap();
                 let val = frame.locals[addr];
-                frame.ssa_value.insert(*dst, val);
+                frame.ssa_values.insert(*dst, val);
 
                 self.advance_pc();
             }
             tac::Instr::Print(ssa) => {
                 let frame = &mut self.stack.last_mut().unwrap();
-                let val = frame.ssa_value.get(ssa).unwrap();
+                let val = frame.ssa_values.get(ssa).unwrap();
                 println!("{val:?}");
                 self.advance_pc();
             }
             tac::Instr::BinOp(dst, op, lhs_ssa, rhs_ssa) => {
                 let frame = &mut self.stack.last_mut().unwrap();
-                let Value::I64(lhs_val) = frame.ssa_value.get(lhs_ssa).unwrap().clone() else {
+                let Value::I64(lhs_val) = frame.ssa_values.get(lhs_ssa).unwrap().clone() else {
                     return self.trap();
                 };
-                let Value::I64(rhs_val) = frame.ssa_value.get(rhs_ssa).unwrap().clone() else {
+                let Value::I64(rhs_val) = frame.ssa_values.get(rhs_ssa).unwrap().clone() else {
                     return self.trap();
                 };
                 let result_val = Value::I64(match op {
@@ -151,7 +179,7 @@ impl<'a> TacVm<'a> {
                     Operator::Div => lhs_val / rhs_val,
                     Operator::Eq => (lhs_val == rhs_val) as i64,
                 });
-                frame.ssa_value.insert(*dst, result_val);
+                frame.ssa_values.insert(*dst, result_val);
                 self.advance_pc();
             }
             tac::Instr::Goto(block_id, ssas) => {
@@ -159,7 +187,7 @@ impl<'a> TacVm<'a> {
             }
             tac::Instr::Beqz(ssa, bb_zero, bb_nonzero) => {
                 let frame = &mut self.stack.last_mut().unwrap();
-                let val = frame.ssa_value.get(ssa).unwrap();
+                let val = frame.ssa_values.get(ssa).unwrap();
                 self.pc = if *val == Value::I64(0) {
                     self.pc.branch(BlockIdx(bb_zero.0 as usize))
                 } else {
@@ -174,6 +202,7 @@ impl<'a> TacVm<'a> {
     }
 
     fn trap(&mut self) {
+        eprintln!("TRAP at {:?}", self.pc);
         self.trapped = true;
         self.halted = true;
     }
@@ -189,9 +218,9 @@ impl<'a> TacVm<'a> {
             println!("Frame #{i}");
             eprintln!("    Return PC:  {:?}", frame.return_pc);
             eprintln!("    Return SSA: {:?}", frame.return_ssa);
-            if !frame.ssa_value.is_empty() {
+            if !frame.ssa_values.is_empty() {
                 eprintln!("    SSAs:");
-                for (ssa, value) in frame.ssa_value.iter() {
+                for (ssa, value) in frame.ssa_values.iter() {
                     eprintln!("         {ssa} = {value:?}");
                 }
             }
@@ -209,8 +238,12 @@ impl<'a> TacVm<'a> {
     }
 
     pub fn run(&mut self) {
+        if self.debug {
+            self.dump();
+        }
         loop {
             self.step();
+
             if self.debug {
                 self.dump();
             }

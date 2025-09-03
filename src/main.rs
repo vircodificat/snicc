@@ -22,9 +22,20 @@ fn main() -> anyhow::Result<()> {
 
     let lexer = Lexer::new(&source_code);
     let parser = ProgramParser::new();
-    let ast = parser
-        .parse(lexer)
-        .map_err(|e| anyhow::anyhow!("Parse error {e:?}"))?;
+    let ast = parser.parse(lexer).map_err(|e| {
+        match &e {
+            lalrpop_util::ParseError::InvalidToken { location } => todo!(),
+            lalrpop_util::ParseError::UnrecognizedEof { location, expected } => todo!(),
+            lalrpop_util::ParseError::UnrecognizedToken { token, expected } => {
+                let (ll, token, rr) = token;
+                let (line, col) = pos_to_linecol(*ll, &source_code);
+                eprintln!("ERROR AT {line}:{col}");
+            }
+            lalrpop_util::ParseError::ExtraToken { token } => todo!(),
+            lalrpop_util::ParseError::User { error } => todo!(),
+        }
+        anyhow::anyhow!("Parse error {e:?}")
+    })?;
 
     //eprintln!("{:#?}", ast);
 
@@ -38,10 +49,28 @@ fn main() -> anyhow::Result<()> {
 
     return Ok(());
 
-//    eprintln!("{tac:#?}");
-//
-//    let asm = assembler::assemble(&tac);
-//    eprintln!("{asm:#?}");
-//
-//    Ok(())
+    //    eprintln!("{tac:#?}");
+    //
+    //    let asm = assembler::assemble(&tac);
+    //    eprintln!("{asm:#?}");
+    //
+    //    Ok(())
+}
+
+fn pos_to_linecol(pos: usize, text: &str) -> (usize, usize) {
+    let mut line = 1;
+    let mut col = 1;
+
+    for (i, ch) in text.chars().enumerate() {
+        if i == pos {
+            return (line, col);
+        }
+        if ch == '\n' {
+            line += 1;
+            col = 0;
+        } else {
+            col += 1;
+        }
+    }
+    return (usize::MAX, usize::MAX);
 }

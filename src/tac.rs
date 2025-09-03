@@ -18,12 +18,19 @@ pub struct Func {
 #[derive(Debug)]
 pub struct Block {
     pub name: BString,
+    pub params: Vec<Param>,
     pub instrs: Vec<Instr>,
+}
+
+#[derive(Debug, Clone, Hash, Eq, PartialEq)]
+pub struct Param {
+    pub ssa: Ssa,
+    pub name: BString,
 }
 
 pub enum Instr {
     Alloca(Ssa, u8, Option<BString>),
-    Call(Ssa, BString),
+    Call(Ssa, BString, Vec<Ssa>),
     Exit,
     Ret(Ssa),
     Const(Ssa, i64),
@@ -66,14 +73,6 @@ impl std::fmt::Display for BlockId {
 }
 
 impl Program {
-    pub fn resolve(self) -> Self {
-        let mut funcs = vec![];
-        for func in self.funcs {
-            funcs.push(func.resolve());
-        }
-        Program { funcs }
-    }
-
     pub(crate) fn func(&self, name: &BStr) -> &Func {
         for func in &self.funcs {
             if func.name == name {
@@ -85,8 +84,8 @@ impl Program {
 }
 
 impl Func {
-    pub fn resolve(self) -> Self {
-        self
+    pub fn params(&self) -> Vec<Param> {
+        self.blocks[0].params.clone()
     }
 }
 
@@ -94,7 +93,13 @@ impl std::fmt::Display for Instr {
     #[rustfmt::skip]
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Instr::Call(ssa, l) =>            write!(f, "CALL   {ssa}, {l}"),
+            Instr::Call(ssa, l, args) => {
+                                              write!(f, "CALL   {ssa}, {l}")?;
+                for arg in args {
+                    write!(f, ", {arg}")?;
+                }
+                Ok(())
+            }
             Instr::Exit =>                    write!(f, "EXIT"),
             Instr::Ret(v) =>                  write!(f, "RET    {v}"),
             Instr::Const(dst, v) =>           write!(f, "CONST  {dst}, {v}"),
@@ -163,15 +168,23 @@ impl Func {
         writeln!(f, "fn {}", &self.name)?;
 
         for (i, block) in self.blocks.iter().enumerate() {
-            writeln!(f, "    ^{i}:");
-            block.pprint(f)?;
+            block.pprint(f, i)?;
         }
         Ok(())
     }
 }
 
 impl Block {
-    pub fn pprint<W: Write>(&self, f: &mut W) -> std::io::Result<()> {
+    pub fn pprint<W: Write>(&self, f: &mut W, i: usize) -> std::io::Result<()> {
+        write!(f, "    ^{i}(")?;
+        for (i, param) in self.params.iter().enumerate() {
+            if i > 0 {
+                write!(f, ", ")?;
+            }
+            write!(f, "{} {}", param.name, param.ssa)?;
+        }
+        writeln!(f, ")")?;
+
         for instr in &self.instrs {
             writeln!(f, "        {instr}");
         }

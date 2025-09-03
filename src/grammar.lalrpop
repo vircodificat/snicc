@@ -14,7 +14,7 @@ extern {
         "var" => Token::KwVar,
         "print" => Token::KwPrint,
         "exit" => Token::KwExit,
-        "identifier" => Token::Identifier(<BString>),
+        "ident" => Token::Identifier(<BString>),
         "int" => Token::Integer(<i64>),
         "fn" => Token::KwFn,
         "return" => Token::KwReturn,
@@ -32,6 +32,7 @@ extern {
         "-" => Token::Minus,
         "*" => Token::Mul,
         "/" => Token::Div,
+        "," => Token::Comma,
     }
 }
 
@@ -42,21 +43,51 @@ pub Program: ast::Program = {
 }
 
 Declaration: ast::Declaration = {
-    "fn" <name:"identifier"> "(" ")" "{"
+    "fn" <name:"ident"> "(" <params:FnParamlist> ")" "{"
         <stmts:Statement*>
     "}" => {
         ast::Declaration::Fn(ast::FuncDecl {
             name,
+            params,
             stmts,
         })
     },
 }
 
+FnParamlist: Vec<BString> = {
+    => vec![],
+    <paramlist:NonemptyFnParamlist> ","? => paramlist,
+}
+
+NonemptyFnParamlist: Vec<BString> = {
+    <ident:"ident"> => { vec![ident] },
+    <mut paramlist:NonemptyFnParamlist> "," <ident:"ident"> => {
+        paramlist.push(ident);
+        paramlist
+    },
+}
+
+Arglist: Vec<ast::Expr> = {
+    => vec![],
+    <arglist:NonemptyArglist> ","? => arglist,
+}
+
+NonemptyArglist: Vec<ast::Expr> = {
+    <arg:Expr> => { vec![*arg] },
+    <mut arglist:NonemptyArglist> "," <arg:Expr> => {
+        arglist.push(*arg);
+        arglist
+    },
+}
+
 Statement: ast::Statement = {
-    "var" <name:"identifier"> "=" <expr:Expr> ";" => {
+    <name:"ident"> "=" <expr:Expr> ";" => {
+        ast::Statement::Assign { name, expr }
+    },
+    "var" <name:"ident"> "=" <expr:Expr> ";" => {
         ast::Statement::VariableInit { name, expr }
     },
-    "var" <name:"identifier"> ";" => {
+    "var" <name:"ident"> ";" => {
         ast::Statement::Variable { name }
     },
     "print" <expr:Expr> ";" => {
@@ -133,12 +164,13 @@ Term: Box<ast::Expr> = {
     <val:"int"> => {
         Box::new(ast::Expr::LitI64(val))
     },
-    <name:"identifier"> => {
+    <name:"ident"> => {
         Box::new(ast::Expr::Variable(name))
     },
-    <fnname:"identifier"> "(" ")" => {
+    <fnname:"ident"> "(" <arglist:Arglist> ")" => {
         Box::new(ast::Expr::Call {
             fnname,
+            args: arglist,
         })
     },
     "(" <Expr> ")",

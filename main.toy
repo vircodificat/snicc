@@ -1,11 +1,17 @@
 fn main() {
-    var result = six();
-    if result == 6 {
-        print result;
+    var x = 0;
+    var r;
+    loop {
+        r = fact(x);
+        print r;
+        x = x + 1;
     }
     exit;
 }
 
-fn six() {
-    return 6;
+fn fact(n) {
+    if n == 0 {
+        return 1;
+    }
+    return n * fact(n - 1);
 }

@@ -13,6 +13,7 @@ pub enum Declaration {
 #[derive(Clone, Debug, PartialEq)]
 pub struct FuncDecl {
     pub name: BString,
+    pub params: Vec<BString>,
     pub stmts: Vec<Statement>,
 }
 
@@ -20,6 +21,7 @@ pub struct FuncDecl {
 pub enum Statement {
     Variable { name: BString },
     VariableInit { name: BString, expr: Box<Expr> },
+    Assign { name: BString, expr: Box<Expr> },
     Print { expr: Box<Expr> },
     Exit,
     Ret(Box<Expr>),
@@ -39,6 +41,7 @@ pub enum Expr {
     },
     Call {
         fnname: BString,
+        args: Vec<Expr>,
     },
 }
 

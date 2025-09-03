@@ -49,13 +49,40 @@ impl Compiler {
     }
 
     fn compile_func(&mut self, func: &ast::FuncDecl) -> tac::Func {
-        let mut blocks = vec![tac::Block {
+        self.idgen = 0;
+
+        self.variable_ssas = HashMap::new();
+
+        let mut params: Vec<tac::Param> = vec![];
+        for name in func.params.clone() {
+            let ssa = self.gensym();
+            let param = tac::Param { ssa, name };
+            params.push(param);
+        }
+
+        let mut first_block = tac::Block {
             name: "BLOCK".into(),
             instrs: vec![],
-        }];
+            params: params.clone(),
+        };
 
-        self.idgen = 0;
-        self.variable_ssas = HashMap::new();
+        let mut blocks = vec![first_block];
+
+        let first_block = blocks.last_mut().unwrap();
+        for param in &params {
+            let addr_ssa = self.gensym();
+            first_block.instrs.push(Instr::Alloca(
+                addr_ssa,
+                8,
+                Some(param.name.clone()),
+            ));
+            first_block.instrs.push(Instr::Store(
+                param.ssa,
+                addr_ssa,
+            ));
+            self.variable_ssas.insert(param.name.clone(), addr_ssa);
+        }
+
         for stmt in &func.stmts {
             self.compile_statement(stmt, &mut blocks);
         }
@@ -88,6 +115,13 @@ impl Compiler {
                 current_block.instrs.push(Instr::Store(val_ssa, var_ssa));
                 self.variable_ssas.insert(name.clone(), var_ssa);
             }
+            ast::Statement::Assign { name, expr } => {
+                let current_block = blocks.last_mut().unwrap();
+                let val_ssa = self.compile_expr(expr, current_block);
+                let var_ssa = self.variable_ssas.get(name).unwrap();
+                let current_block = blocks.last_mut().unwrap();
+                current_block.instrs.push(Instr::Store(val_ssa, *var_ssa));
+            }
             ast::Statement::Print { expr } => {
                 let current_block = blocks.last_mut().unwrap();
                 let val_ssa = self.compile_expr(expr, current_block);
@@ -116,6 +150,7 @@ impl Compiler {
                 blocks.push(tac::Block {
                     name: "BLOCK".into(),
                     instrs: vec![],
+                    params: vec![],
                 });
                 for stmt in stmts {
                     self.compile_statement(stmt, blocks);
@@ -127,6 +162,7 @@ impl Compiler {
                 blocks.push(tac::Block {
                     name: "BLOCK".into(),
                     instrs: vec![],
+                    params: vec![],
                 });
             }
             ast::Statement::If(expr, stmts) => {
@@ -136,13 +172,16 @@ impl Compiler {
                 let current_block = blocks.last_mut().unwrap();
                 let condition_ssa = self.compile_expr(expr, current_block);
 
-                current_block
-                    .instrs
-                    .push(Instr::Beqz(condition_ssa, if_end_block_id, if_start_block_id));
+                current_block.instrs.push(Instr::Beqz(
+                    condition_ssa,
+                    if_end_block_id,
+                    if_start_block_id,
+                ));
 
                 blocks.push(tac::Block {
                     name: "BLOCK".into(),
                     instrs: vec![],
+                    params: vec![],
                 });
 
                 for stmt in stmts {
@@ -157,6 +196,7 @@ impl Compiler {
                 blocks.push(tac::Block {
                     name: "BLOCK".into(),
                     instrs: vec![],
+                    params: vec![],
                 });
             }
         }
@@ -184,9 +224,15 @@ impl Compiler {
                     .push(Instr::BinOp(ssa, *operator, lhs_ssa, rhs_ssa));
                 ssa
             }
-            ast::Expr::Call { fnname } => {
+            ast::Expr::Call { fnname, args } => {
                 let ssa = self.gensym();
-                block.instrs.push(Instr::Call(ssa, fnname.clone()));
+                let mut arg_ssas = Vec::new();
+                for arg in args {
+                    arg_ssas.push(self.compile_expr(arg, block));
+                }
+                block
+                    .instrs
+                    .push(Instr::Call(ssa, fnname.clone(), arg_ssas));
                 ssa
             }
         }
