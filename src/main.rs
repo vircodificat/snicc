@@ -1,9 +1,9 @@
-mod ast;
-mod tac;
 mod asm;
-mod lexer;
-mod compile;
 mod assembler;
+mod ast;
+mod compile;
+mod lexer;
+mod tac;
 mod tac_vm;
 
 use bstr::BString;
@@ -26,7 +26,7 @@ fn main() -> anyhow::Result<()> {
         .parse(lexer)
         .map_err(|e| anyhow::anyhow!("Parse error {e:?}"))?;
 
-//    eprintln!("{:#?}", ast);
+    //    eprintln!("{:#?}", ast);
 
     let mut f = std::io::stdout();
     let tac = compile::compile(&ast);
@@ -42,7 +42,6 @@ fn main() -> anyhow::Result<()> {
 
     let asm = assembler::assemble(&tac);
     eprintln!("{asm:#?}");
-
 
     Ok(())
 }

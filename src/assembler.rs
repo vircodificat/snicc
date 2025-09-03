@@ -1,10 +1,9 @@
 use bstr::BString;
 
-use crate::tac;
 use crate::asm;
+use crate::tac;
 
 use crate::asm::Reg;
-
 
 pub fn assemble(prog: &tac::Program) -> asm::Program {
     let mut assmebler = Assembler::new();
@@ -26,7 +25,6 @@ impl Assembler {
     }
 
     fn assemble(&mut self, prog: &tac::Program) -> asm::Program {
-
         let mut funcs = vec![];
 
         for func in &prog.funcs {
@@ -55,7 +53,8 @@ impl Assembler {
                     todo!()
                 }
                 tac::Instr::Const(dst, v) => {
-                    self.instrs.push(asm::Instr::Li(Reg::t0(), u32::try_from(*v).unwrap()));
+                    self.instrs
+                        .push(asm::Instr::Li(Reg::t0(), u32::try_from(*v).unwrap()));
                 }
                 _ => todo!(),
             }
@@ -71,8 +70,5 @@ impl Assembler {
         }
     }
 
-    fn load_ssa(&mut self, ssa: tac::Ssa) {
-
-    }
+    fn load_ssa(&mut self, ssa: tac::Ssa) {}
 }
-

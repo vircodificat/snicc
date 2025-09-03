@@ -73,7 +73,7 @@ impl<'a> TacVm<'a> {
                             break 'result FnIdx(i);
                         }
                     }
-                    return self.trap()
+                    return self.trap();
                 };
 
                 let frame = StackFrame {
@@ -110,7 +110,7 @@ impl<'a> TacVm<'a> {
             tac::Instr::Store(src, addr) => {
                 let frame = &mut self.stack.last_mut().unwrap();
                 let Value::Addr(addr) = *frame.ssa_value.get(addr).unwrap() else {
-                    return self.trap()
+                    return self.trap();
                 };
                 let val = *frame.ssa_value.get(src).unwrap();
                 frame.locals[addr] = val;
@@ -135,8 +135,12 @@ impl<'a> TacVm<'a> {
             }
             tac::Instr::BinOp(dst, op, lhs_ssa, rhs_ssa) => {
                 let frame = &mut self.stack.last_mut().unwrap();
-                let Value::I64(lhs_val) = frame.ssa_value.get(lhs_ssa).unwrap().clone() else { return self.trap() };
-                let Value::I64(rhs_val) = frame.ssa_value.get(rhs_ssa).unwrap().clone() else { return self.trap() };
+                let Value::I64(lhs_val) = frame.ssa_value.get(lhs_ssa).unwrap().clone() else {
+                    return self.trap();
+                };
+                let Value::I64(rhs_val) = frame.ssa_value.get(rhs_ssa).unwrap().clone() else {
+                    return self.trap();
+                };
                 let result_val = Value::I64(match op {
                     Operator::Add => lhs_val + rhs_val,
                     Operator::Sub => lhs_val - rhs_val,
@@ -181,7 +185,9 @@ impl<'a> TacVm<'a> {
                 }
             }
         }
-        println!("--------------------------------------------------------------------------------");
+        println!(
+            "--------------------------------------------------------------------------------"
+        );
         println!();
     }
 

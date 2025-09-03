@@ -16,19 +16,11 @@ pub struct FuncDecl {
     pub stmts: Vec<Statement>,
 }
 
-
 #[derive(Clone, Debug, PartialEq)]
 pub enum Statement {
-    Variable {
-        name: BString,
-    },
-    VariableInit {
-        name: BString,
-        expr: Box<Expr>,
-    },
-    Print {
-        expr: Box<Expr>,
-    },
+    Variable { name: BString },
+    VariableInit { name: BString, expr: Box<Expr> },
+    Print { expr: Box<Expr> },
     Exit,
     Ret(Box<Expr>),
     Expr(Box<Expr>),
@@ -45,7 +37,7 @@ pub enum Expr {
     },
     Call {
         fnname: BString,
-    }
+    },
 }
 
 #[derive(Copy, Clone, Debug, PartialEq)]
