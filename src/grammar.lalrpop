@@ -21,18 +21,28 @@ extern {
         "loop" => Token::KwLoop,
         "if" => Token::KwIf,
         "else" => Token::KwElse,
+        "while" => Token::KwWhile,
+        "for" => Token::KwFor,
+        "in" => Token::KwIn,
         "{" => Token::LCurly,
         "}" => Token::RCurly,
         "(" => Token::LParen,
         ")" => Token::RParen,
         "=" => Token::Eq,
         "==" => Token::EqEq,
+        "!=" => Token::NotEq,
+        "<" => Token::Lt,
+        ">" => Token::Gt,
+        "<=" => Token::LtEq,
+        ">=" => Token::GtEq,
         ";" => Token::Semicolon,
         "+" => Token::Plus,
         "-" => Token::Minus,
         "*" => Token::Mul,
         "/" => Token::Div,
         "," => Token::Comma,
+        "." => Token::Dot,
+        ".." => Token::DotDot,
     }
 }
 
@@ -112,6 +122,16 @@ Statement: ast::Statement = {
     "}" => {
         ast::Statement::If(expr, stmts)
     },
+    "while" <expr:Expr> "{"
+        <stmts:Statement*>
+    "}" => {
+        ast::Statement::While(expr, stmts)
+    },
+    "for" <ident:"ident"> "in" <start:Expr> ".." <end:Expr> "{"
+        <stmts:Statement*>
+    "}" => {
+        ast::Statement::For(ident, start, end, stmts)
+    },
 }
 
 Expr: Box<ast::Expr> = {
@@ -155,6 +175,13 @@ Expr: Box<ast::Expr> = {
         Box::new(ast::Expr::BinaryOperation {
             lhs,
             operator: ast::Operator::Eq,
+            rhs
+        })
+    },
+    <lhs:Expr> "<" <rhs:Expr> => {
+        Box::new(ast::Expr::BinaryOperation {
+            lhs,
+            operator: ast::Operator::Lt,
             rhs
         })
     },

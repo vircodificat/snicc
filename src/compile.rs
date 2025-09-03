@@ -71,15 +71,10 @@ impl Compiler {
         let first_block = blocks.last_mut().unwrap();
         for param in &params {
             let addr_ssa = self.gensym();
-            first_block.instrs.push(Instr::Alloca(
-                addr_ssa,
-                8,
-                Some(param.name.clone()),
-            ));
-            first_block.instrs.push(Instr::Store(
-                param.ssa,
-                addr_ssa,
-            ));
+            first_block
+                .instrs
+                .push(Instr::Alloca(addr_ssa, 8, Some(param.name.clone())));
+            first_block.instrs.push(Instr::Store(param.ssa, addr_ssa));
             self.variable_ssas.insert(param.name.clone(), addr_ssa);
         }
 
@@ -192,6 +187,134 @@ impl Compiler {
                 current_block
                     .instrs
                     .push(Instr::Goto(if_end_block_id, vec![]));
+
+                blocks.push(tac::Block {
+                    name: "BLOCK".into(),
+                    instrs: vec![],
+                    params: vec![],
+                });
+            }
+            ast::Statement::While(expr, stmts) => {
+                let loop_cond_block_id = BlockId(blocks.len() as u32);
+                let loop_start_block_id = BlockId((blocks.len() + 1) as u32);
+                let loop_end_block_id = BlockId((blocks.len() + 2) as u32);
+
+                let current_block = blocks.last_mut().unwrap();
+
+                current_block
+                    .instrs
+                    .push(Instr::Goto(loop_cond_block_id, vec![]));
+
+                blocks.push(tac::Block {
+                    name: "BLOCK".into(),
+                    instrs: vec![],
+                    params: vec![],
+                });
+                let current_block = blocks.last_mut().unwrap();
+                let cond_ssa = self.compile_expr(expr, current_block);
+                current_block.instrs.push(Instr::Beqz(
+                    cond_ssa,
+                    loop_end_block_id,
+                    loop_start_block_id,
+                ));
+
+                blocks.push(tac::Block {
+                    name: "BLOCK".into(),
+                    instrs: vec![],
+                    params: vec![],
+                });
+
+                for stmt in stmts {
+                    self.compile_statement(stmt, blocks);
+                }
+                let current_block = blocks.last_mut().unwrap();
+                current_block
+                    .instrs
+                    .push(Instr::Goto(loop_cond_block_id, vec![]));
+
+                blocks.push(tac::Block {
+                    name: "BLOCK".into(),
+                    instrs: vec![],
+                    params: vec![],
+                });
+            }
+            ast::Statement::For(name, start, end, stmts) => {
+                let loop_cond_block_id = BlockId((blocks.len()) as u32);
+                let loop_start_block_id = BlockId((blocks.len() + 1) as u32);
+                let loop_end_block_id = BlockId((blocks.len() + 2) as u32);
+
+                let current_block = blocks.last_mut().unwrap();
+                let start_ssa = self.compile_expr(start, current_block);
+                let end_ssa = self.compile_expr(end, current_block);
+
+                let iter_var_ssa = self.gensym();
+
+                self.variable_ssas.insert(name.clone(), iter_var_ssa);
+                current_block
+                    .instrs
+                    .push(Instr::Alloca(iter_var_ssa, 8, Some(name.clone())));
+                current_block
+                    .instrs
+                    .push(Instr::Store(start_ssa, iter_var_ssa));
+                current_block
+                    .instrs
+                    .push(Instr::Goto(loop_cond_block_id, vec![start_ssa]));
+
+                blocks.push(tac::Block {
+                    name: "BLOCK".into(),
+                    instrs: vec![],
+                    params: vec![],
+                });
+
+                let current_block = blocks.last_mut().unwrap();
+                let loop_ssa = self.gensym();
+                let cond_ssa = self.gensym();
+                current_block
+                    .instrs
+                    .push(Instr::Load(loop_ssa, iter_var_ssa));
+                current_block.instrs.push(Instr::BinOp(
+                    cond_ssa,
+                    ast::Operator::Lt,
+                    loop_ssa,
+                    end_ssa,
+                ));
+                current_block.instrs.push(Instr::Beqz(
+                    cond_ssa,
+                    loop_end_block_id,
+                    loop_start_block_id,
+                ));
+
+                blocks.push(tac::Block {
+                    name: "BLOCK".into(),
+                    instrs: vec![],
+                    params: vec![],
+                });
+
+                let current_block = blocks.last_mut().unwrap();
+                for stmt in stmts {
+                    self.compile_statement(stmt, blocks);
+                }
+                let current_block = blocks.last_mut().unwrap();
+                let one_ssa = self.gensym();
+                let next_loop_ssa = self.gensym();
+                let loop_ssa = self.gensym();
+
+                current_block
+                    .instrs
+                    .push(Instr::Load(loop_ssa, iter_var_ssa));
+                current_block.instrs.push(Instr::Const(one_ssa, 1));
+                current_block.instrs.push(Instr::BinOp(
+                    next_loop_ssa,
+                    ast::Operator::Add,
+                    loop_ssa,
+                    one_ssa,
+                ));
+                current_block
+                    .instrs
+                    .push(Instr::Store(next_loop_ssa, iter_var_ssa));
+                current_block
+                    .instrs
+                    .push(Instr::Goto(loop_cond_block_id, vec![]));
 
                 blocks.push(tac::Block {
                     name: "BLOCK".into(),

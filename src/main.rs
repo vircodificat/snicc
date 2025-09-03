@@ -7,6 +7,7 @@ mod tac;
 mod tac_vm;
 
 use bstr::BString;
+use clap::Parser;
 use lalrpop_util::lalrpop_mod;
 
 use crate::ast::*;
@@ -15,8 +16,16 @@ use crate::ast::*;
 use crate::{grammar::ProgramParser, lexer::Lexer};
 lalrpop_mod!(grammar);
 
+#[derive(Parser)]
+struct Cli {
+    filepath: Option<String>,
+}
+
 fn main() -> anyhow::Result<()> {
-    let source_code = std::fs::read_to_string("main.toy")?;
+    let args = Cli::parse();
+    let filepath = args.filepath.unwrap_or_else(|| "main.toy".to_string());
+
+    let source_code = std::fs::read_to_string(&filepath)?;
     println!("{source_code}");
     println!();
 

@@ -27,7 +27,9 @@ pub enum Statement {
     Ret(Box<Expr>),
     Expr(Box<Expr>),
     Loop(Vec<Statement>),
+    While(Box<Expr>, Vec<Statement>),
     If(Box<Expr>, Vec<Statement>),
+    For(BString, Box<Expr>, Box<Expr>, Vec<Statement>),
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -52,4 +54,8 @@ pub enum Operator {
     Mul,
     Div,
     Eq,
+    Lt,
+    Gt,
+    LtEq,
+    GtEq,
 }

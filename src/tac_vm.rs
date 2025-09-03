@@ -1,3 +1,5 @@
+const DEBUG: bool = false;
+
 use std::collections::HashMap;
 
 use crate::{ast::Operator, tac};
@@ -11,7 +13,6 @@ struct InstrIdx(usize);
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 struct Pc(FnIdx, BlockIdx, InstrIdx);
 
-const DEBUG: bool = false;
 
 #[derive(Debug)]
 pub struct TacVm<'a> {
@@ -100,7 +101,12 @@ impl<'a> TacVm<'a> {
                 };
                 let callee_func = &self.program.funcs[func_idx.0];
                 let mut ssa_values = HashMap::new();
-                for (i, (param, arg_ssa)) in callee_func.params().into_iter().zip(arg_ssas.iter()).enumerate() {
+                for (i, (param, arg_ssa)) in callee_func
+                    .params()
+                    .into_iter()
+                    .zip(arg_ssas.iter())
+                    .enumerate()
+                {
                     let val = self.ssa_value(*arg_ssa);
                     ssa_values.insert(param.ssa, val);
                 }
@@ -116,7 +122,7 @@ impl<'a> TacVm<'a> {
             }
             tac::Instr::Exit => {
                 self.stack.pop();
-                self.trap();
+                self.halted = true;
             }
             tac::Instr::Ret(ssa) => {
                 let frame = &self.stack.last_mut().unwrap();
@@ -178,6 +184,10 @@ impl<'a> TacVm<'a> {
                     Operator::Mul => lhs_val * rhs_val,
                     Operator::Div => lhs_val / rhs_val,
                     Operator::Eq => (lhs_val == rhs_val) as i64,
+                    Operator::Lt => (lhs_val < rhs_val) as i64,
+                    Operator::Gt => (lhs_val > rhs_val) as i64,
+                    Operator::LtEq => (lhs_val <= rhs_val) as i64,
+                    Operator::GtEq => (lhs_val >= rhs_val) as i64,
                 });
                 frame.ssa_values.insert(*dst, result_val);
                 self.advance_pc();
