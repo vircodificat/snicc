@@ -5,9 +5,11 @@ use crate::{ast::Operator, tac};
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 struct FnIdx(usize);
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct BlockIdx(usize);
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 struct InstrIdx(usize);
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-struct Pc(FnIdx, InstrIdx);
+struct Pc(FnIdx, BlockIdx, InstrIdx);
 
 #[derive(Debug)]
 pub struct TacVm<'a> {
@@ -44,7 +46,7 @@ impl<'a> TacVm<'a> {
         };
 
         TacVm {
-            pc: Pc(FnIdx(0), InstrIdx(0)),
+            pc: Pc(FnIdx(0), BlockIdx(0), InstrIdx(0)),
             program,
             stack: vec![main_frame],
             halted: false,
@@ -55,7 +57,8 @@ impl<'a> TacVm<'a> {
 
     pub fn step(&mut self) {
         let func = &self.program.funcs[self.pc.0.0];
-        let instr = &func.instrs[self.pc.1.0];
+        let block = &func.blocks[self.pc.1.0];
+        let instr = &block.instrs[self.pc.2.0];
         //eprintln!("STEP {instr}");
 
         match instr {
@@ -83,7 +86,7 @@ impl<'a> TacVm<'a> {
                     locals: vec![],
                 };
                 self.stack.push(frame);
-                self.pc = Pc(func_idx, InstrIdx(0));
+                self.pc = Pc(func_idx, BlockIdx(0), InstrIdx(0));
             }
             tac::Instr::Exit => {
                 self.stack.pop();
@@ -146,9 +149,22 @@ impl<'a> TacVm<'a> {
                     Operator::Sub => lhs_val - rhs_val,
                     Operator::Mul => lhs_val * rhs_val,
                     Operator::Div => lhs_val / rhs_val,
+                    Operator::Eq => (lhs_val == rhs_val) as i64,
                 });
                 frame.ssa_value.insert(*dst, result_val);
                 self.advance_pc();
+            }
+            tac::Instr::Goto(block_id, ssas) => {
+                self.pc = Pc(self.pc.func(), BlockIdx(block_id.0 as usize), InstrIdx(0));
+            }
+            tac::Instr::Beqz(ssa, bb_zero, bb_nonzero) => {
+                let frame = &mut self.stack.last_mut().unwrap();
+                let val = frame.ssa_value.get(ssa).unwrap();
+                self.pc = if *val == Value::I64(0) {
+                    self.pc.branch(BlockIdx(bb_zero.0 as usize))
+                } else {
+                    self.pc.branch(BlockIdx(bb_nonzero.0 as usize))
+                };
             }
         }
     }
@@ -165,7 +181,8 @@ impl<'a> TacVm<'a> {
     pub fn dump(&self) {
         println!("PC: {:?}", self.pc);
         let func = &self.program.funcs[self.pc.0.0];
-        let instr = &func.instrs[self.pc.1.0];
+        let blocks = &func.blocks[self.pc.1.0];
+        let instr = &blocks.instrs[self.pc.2.0];
         println!("INSTR: {instr:?}");
         println!("Stack");
         for (i, frame) in self.stack.iter().enumerate() {
@@ -209,13 +226,23 @@ impl Pc {
     pub fn func(&self) -> FnIdx {
         self.0
     }
-    pub fn instr(&self) -> InstrIdx {
+    pub fn block(&self) -> BlockIdx {
         self.1
     }
+    pub fn instr(&self) -> InstrIdx {
+        self.2
+    }
     pub fn no_return() -> Pc {
-        Pc(FnIdx(usize::MAX), InstrIdx(usize::MAX))
+        Pc(
+            FnIdx(usize::MAX),
+            BlockIdx(usize::MAX),
+            InstrIdx(usize::MAX),
+        )
     }
     pub fn next(&self) -> Pc {
-        Pc(self.func(), InstrIdx(self.instr().0 + 1))
+        Pc(self.func(), self.block(), InstrIdx(self.instr().0 + 1))
+    }
+    pub fn branch(&self, block_id: BlockIdx) -> Pc {
+        Pc(self.func(), block_id, InstrIdx(0))
     }
 }

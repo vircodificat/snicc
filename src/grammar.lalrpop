@@ -18,11 +18,15 @@ extern {
         "int" => Token::Integer(<i64>),
         "fn" => Token::KwFn,
         "return" => Token::KwReturn,
+        "loop" => Token::KwLoop,
+        "if" => Token::KwIf,
+        "else" => Token::KwElse,
         "{" => Token::LCurly,
         "}" => Token::RCurly,
         "(" => Token::LParen,
         ")" => Token::RParen,
-        "=" => Token::Assign,
+        "=" => Token::Eq,
+        "==" => Token::EqEq,
         ";" => Token::Semicolon,
         "+" => Token::Plus,
         "-" => Token::Minus,
@@ -67,6 +71,16 @@ Statement: ast::Statement = {
     <expr:Expr> ";" => {
         ast::Statement::Expr(expr)
     },
+    "loop" "{"
+        <stmts:Statement*>
+    "}" => {
+        ast::Statement::Loop(stmts)
+    },
+    "if" <expr:Expr> "{"
+        <stmts:Statement*>
+    "}" => {
+        ast::Statement::If(expr, stmts)
+    },
 }
 
 Expr: Box<ast::Expr> = {
@@ -101,6 +115,15 @@ Expr: Box<ast::Expr> = {
         Box::new(ast::Expr::BinaryOperation {
             lhs,
             operator: ast::Operator::Sub,
+            rhs
+        })
+    },
+
+    #[precedence(level="4")] #[assoc(side="left")]
+    <lhs:Expr> "==" <rhs:Expr> => {
+        Box::new(ast::Expr::BinaryOperation {
+            lhs,
+            operator: ast::Operator::Eq,
             rhs
         })
     },

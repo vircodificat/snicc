@@ -12,6 +12,12 @@ pub struct Program {
 pub struct Func {
     pub visibility: Visibility,
     pub name: BString,
+    pub blocks: Vec<Block>,
+}
+
+#[derive(Debug)]
+pub struct Block {
+    pub name: BString,
     pub instrs: Vec<Instr>,
 }
 
@@ -24,11 +30,16 @@ pub enum Instr {
     Load(Ssa, Ssa),
     Store(Ssa, Ssa),
     Print(Ssa),
+    Beqz(Ssa, BlockId, BlockId),
     BinOp(Ssa, Operator, Ssa, Ssa),
+    Goto(BlockId, Vec<Ssa>),
 }
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash, PartialOrd, Ord)]
 pub struct Ssa(pub u32);
+
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Hash, PartialOrd, Ord)]
+pub struct BlockId(pub u32);
 
 #[derive(Debug)]
 pub enum Op {
@@ -45,6 +56,12 @@ pub enum Visibility {
 impl std::fmt::Display for Ssa {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "%{}", self.0)
+    }
+}
+
+impl std::fmt::Display for BlockId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "^{}", self.0)
     }
 }
 
@@ -91,9 +108,18 @@ impl std::fmt::Display for Instr {
             Instr::Load(dst, addr) =>         write!(f, "LOAD   {dst}, ({addr})"),
             Instr::Store(src, addr) =>        write!(f, "STORE  {src}, ({addr})"),
             Instr::Print(ssa) =>              write!(f, "PRINT  {ssa}"),
+            Instr::Beqz(ssa, bb_zero, bb_nonzero) =>
+                                              write!(f, "BEQZ   {ssa}, {bb_zero}, {bb_nonzero}"),
             Instr::BinOp(ssa, operator, lhs, rhs) => {
                 let op_name = format!("{operator:?}").to_uppercase();
                                               write!(f, "{op_name:<7}{ssa}, {lhs}, {rhs}", )
+            }
+            Instr::Goto(blockid, ssas) => {
+                                              write!(f, "GOTO   {blockid}")?;
+                for ssa in ssas {
+                    write!(f, ", {ssa}")?;
+                }
+                Ok(())
             }
         }
     }
@@ -136,8 +162,18 @@ impl Func {
         }
         writeln!(f, "fn {}", &self.name)?;
 
+        for (i, block) in self.blocks.iter().enumerate() {
+            writeln!(f, "    ^{i}:");
+            block.pprint(f)?;
+        }
+        Ok(())
+    }
+}
+
+impl Block {
+    pub fn pprint<W: Write>(&self, f: &mut W) -> std::io::Result<()> {
         for instr in &self.instrs {
-            writeln!(f, "    {instr}");
+            writeln!(f, "        {instr}");
         }
         Ok(())
     }

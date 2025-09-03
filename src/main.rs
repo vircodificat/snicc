@@ -1,5 +1,5 @@
 mod asm;
-mod assembler;
+//mod assembler;
 mod ast;
 mod compile;
 mod lexer;
@@ -10,7 +10,7 @@ use bstr::BString;
 use lalrpop_util::lalrpop_mod;
 
 use crate::ast::*;
-use crate::tac::*;
+//use crate::tac::*;
 
 use crate::{grammar::ProgramParser, lexer::Lexer};
 lalrpop_mod!(grammar);
@@ -26,7 +26,7 @@ fn main() -> anyhow::Result<()> {
         .parse(lexer)
         .map_err(|e| anyhow::anyhow!("Parse error {e:?}"))?;
 
-    //    eprintln!("{:#?}", ast);
+    //eprintln!("{:#?}", ast);
 
     let mut f = std::io::stdout();
     let tac = compile::compile(&ast);
@@ -38,10 +38,10 @@ fn main() -> anyhow::Result<()> {
 
     return Ok(());
 
-    eprintln!("{tac:#?}");
-
-    let asm = assembler::assemble(&tac);
-    eprintln!("{asm:#?}");
-
-    Ok(())
+//    eprintln!("{tac:#?}");
+//
+//    let asm = assembler::assemble(&tac);
+//    eprintln!("{asm:#?}");
+//
+//    Ok(())
 }

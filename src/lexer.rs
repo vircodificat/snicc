@@ -11,6 +11,9 @@ pub enum Token {
     #[token("print")] KwPrint,
     #[token("exit")] KwExit,
     #[token("return")] KwReturn,
+    #[token("loop")] KwLoop,
+    #[token("if")] KwIf,
+    #[token("else")] KwElse,
 
     #[regex("[_a-zA-Z][_0-9a-zA-Z]*", |lex| BString::from(lex.slice().to_string()))] Identifier(BString),
     #[regex("[0-9]+", |lex| lex.slice().parse())] Integer(i64),
@@ -21,7 +24,8 @@ pub enum Token {
     #[token("(")] LParen,
     #[token(")")] RParen,
 
-    #[token("=")] Assign,
+    #[token("==")] EqEq,
+    #[token("=")] Eq,
     #[token(";")] Semicolon,
 
     #[token("+")] Plus,

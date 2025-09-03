@@ -24,6 +24,8 @@ pub enum Statement {
     Exit,
     Ret(Box<Expr>),
     Expr(Box<Expr>),
+    Loop(Vec<Statement>),
+    If(Box<Expr>, Vec<Statement>),
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -46,4 +48,5 @@ pub enum Operator {
     Sub,
     Mul,
     Div,
+    Eq,
 }
