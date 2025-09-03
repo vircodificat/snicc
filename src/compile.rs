@@ -50,10 +50,18 @@ impl Compiler {
     }
 
     fn compile_func(&mut self, func: &ast::FuncDecl) -> tac::Func {
+        self.idgen = 0;
         self.instrs = Vec::new();
+        self.variable_ssas = HashMap::new();
         for stmt in &func.stmts {
             match stmt {
-                ast::Statement::Variable { name, expr } => {
+                ast::Statement::Variable { name } => {
+                    let var_ssa = self.gensym();
+                    self.instrs
+                        .push(Instr::Alloca(var_ssa, 8, Some(name.clone())));
+                    self.variable_ssas.insert(name.clone(), var_ssa);
+                }
+                ast::Statement::VariableInit { name, expr } => {
                     let var_ssa = self.gensym();
                     let val_ssa = self.compile_expr(expr);
                     self.instrs
@@ -71,6 +79,9 @@ impl Compiler {
                 }
                 ast::Statement::Expr(expr) => {
                     self.compile_expr(expr);
+                }
+                ast::Statement::Exit => {
+                    self.instrs.push(Instr::Exit);
                 }
             }
         }
@@ -102,7 +113,8 @@ impl Compiler {
                 let ssa = self.gensym();
                 let lhs_ssa = self.compile_expr(lhs);
                 let rhs_ssa = self.compile_expr(rhs);
-                self.instrs.push(Instr::BinOp(ssa, *operator, lhs_ssa, rhs_ssa));
+                self.instrs
+                    .push(Instr::BinOp(ssa, *operator, lhs_ssa, rhs_ssa));
                 ssa
             }
             ast::Expr::Call { fnname } => {

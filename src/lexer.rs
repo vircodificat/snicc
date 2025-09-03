@@ -9,6 +9,7 @@ pub enum Token {
     #[token("fn")] KwFn,
     #[token("var")] KwVar,
     #[token("print")] KwPrint,
+    #[token("exit")] KwExit,
     #[token("return")] KwReturn,
 
     #[regex("[_a-zA-Z][_0-9a-zA-Z]*", |lex| BString::from(lex.slice().to_string()))] Identifier(BString),

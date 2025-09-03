@@ -18,6 +18,7 @@ pub struct Func {
 pub enum Instr {
     Alloca(Ssa, u8, Option<BString>),
     Call(Ssa, BString),
+    Exit,
     Ret(Ssa),
     Const(Ssa, i64),
     Load(Ssa, Ssa),
@@ -77,15 +78,16 @@ impl std::fmt::Display for Instr {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Instr::Call(ssa, l) =>            write!(f, "CALL   {ssa}, {l}"),
+            Instr::Exit =>                    write!(f, "EXIT"),
             Instr::Ret(v) =>                  write!(f, "RET    {v}"),
             Instr::Const(dst, v) =>           write!(f, "CONST  {dst}, {v}"),
             Instr::Alloca(ssa, size, name) => {
-                                              write!(f, "ALLOCA {ssa}, {size}", )?;
-                        if let Some(name_hint) = name {
-                            write!(f, " ({name_hint})")?;
-                        }
-                        Ok(())
-                    }
+                                              write!(f, "ALLOCA {ssa}, {size}")?;
+                if let Some(name_hint) = name {
+                    write!(f, " (name: {name_hint})")?;
+                }
+                Ok(())
+            }
             Instr::Load(dst, addr) =>         write!(f, "LOAD   {dst}, ({addr})"),
             Instr::Store(src, addr) =>        write!(f, "STORE  {src}, ({addr})"),
             Instr::Print(ssa) =>              write!(f, "PRINT  {ssa}"),

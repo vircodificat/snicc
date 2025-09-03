@@ -1,9 +1,12 @@
 fn main() {
+    var i = 32;
     var result = six();
     print result + 1;
-    return result;
+    exit;
 }
 
 fn six() {
-    return 6;
+    var i = 32;
+    var j;
+    return i;
 }

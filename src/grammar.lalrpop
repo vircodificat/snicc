@@ -13,6 +13,7 @@ extern {
     enum Token {
         "var" => Token::KwVar,
         "print" => Token::KwPrint,
+        "exit" => Token::KwExit,
         "identifier" => Token::Identifier(<BString>),
         "int" => Token::Integer(<i64>),
         "fn" => Token::KwFn,
@@ -49,10 +50,16 @@ Declaration: ast::Declaration = {
 
 Statement: ast::Statement = {
     "var" <name:"identifier"> "=" <expr:Expr> ";" => {
-        ast::Statement::Variable { name, expr }
+        ast::Statement::VariableInit { name, expr }
+    },
+    "var" <name:"identifier"> ";" => {
+        ast::Statement::Variable { name }
     },
     "print" <expr:Expr> ";" => {
         ast::Statement::Print { expr }
+    },
+    "exit" ";" => {
+        ast::Statement::Exit
     },
     "return" <expr:Expr> ";" => {
         ast::Statement::Ret(expr)

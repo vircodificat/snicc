@@ -21,11 +21,15 @@ pub struct FuncDecl {
 pub enum Statement {
     Variable {
         name: BString,
+    },
+    VariableInit {
+        name: BString,
         expr: Box<Expr>,
     },
     Print {
         expr: Box<Expr>,
     },
+    Exit,
     Ret(Box<Expr>),
     Expr(Box<Expr>),
 }

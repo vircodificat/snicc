@@ -15,6 +15,8 @@ pub struct TacVm<'a> {
     program: &'a tac::Program,
     stack: Vec<StackFrame>,
     halted: bool,
+    trapped: bool,
+    debug: bool,
 }
 
 #[derive(Debug)]
@@ -29,7 +31,7 @@ pub struct StackFrame {
 pub enum Value {
     I64(i64),
     Addr(usize),
-    Undefined,
+    Uninitialized,
 }
 
 impl<'a> TacVm<'a> {
@@ -46,6 +48,8 @@ impl<'a> TacVm<'a> {
             program,
             stack: vec![main_frame],
             halted: false,
+            trapped: false,
+            debug: false,
         }
     }
 
@@ -58,7 +62,7 @@ impl<'a> TacVm<'a> {
             tac::Instr::Alloca(ssa, size, bstring) => {
                 let frame = &mut self.stack.last_mut().unwrap();
                 let addr = Value::Addr(frame.locals.len());
-                frame.locals.push(Value::Undefined);
+                frame.locals.push(Value::Uninitialized);
                 frame.ssa_value.insert(*ssa, addr);
                 self.advance_pc();
             }
@@ -69,7 +73,7 @@ impl<'a> TacVm<'a> {
                             break 'result FnIdx(i);
                         }
                     }
-                    panic!("No such function")
+                    return self.trap()
                 };
 
                 let frame = StackFrame {
@@ -80,6 +84,10 @@ impl<'a> TacVm<'a> {
                 };
                 self.stack.push(frame);
                 self.pc = Pc(func_idx, InstrIdx(0));
+            }
+            tac::Instr::Exit => {
+                self.stack.pop();
+                self.trap();
             }
             tac::Instr::Ret(ssa) => {
                 let frame = &self.stack.last_mut().unwrap();
@@ -102,7 +110,7 @@ impl<'a> TacVm<'a> {
             tac::Instr::Store(src, addr) => {
                 let frame = &mut self.stack.last_mut().unwrap();
                 let Value::Addr(addr) = *frame.ssa_value.get(addr).unwrap() else {
-                    panic!("addr = {addr}");
+                    return self.trap()
                 };
                 let val = *frame.ssa_value.get(src).unwrap();
                 frame.locals[addr] = val;
@@ -112,7 +120,7 @@ impl<'a> TacVm<'a> {
             tac::Instr::Load(dst, addr) => {
                 let frame = &mut self.stack.last_mut().unwrap();
                 let Value::Addr(addr) = *frame.ssa_value.get(addr).unwrap() else {
-                    panic!();
+                    return self.trap();
                 };
                 let val = frame.locals[addr];
                 frame.ssa_value.insert(*dst, val);
@@ -127,8 +135,8 @@ impl<'a> TacVm<'a> {
             }
             tac::Instr::BinOp(dst, op, lhs_ssa, rhs_ssa) => {
                 let frame = &mut self.stack.last_mut().unwrap();
-                let Value::I64(lhs_val) = frame.ssa_value.get(lhs_ssa).unwrap().clone() else { panic!() };
-                let Value::I64(rhs_val) = frame.ssa_value.get(rhs_ssa).unwrap().clone() else { panic!() };
+                let Value::I64(lhs_val) = frame.ssa_value.get(lhs_ssa).unwrap().clone() else { return self.trap() };
+                let Value::I64(rhs_val) = frame.ssa_value.get(rhs_ssa).unwrap().clone() else { return self.trap() };
                 let result_val = Value::I64(match op {
                     Operator::Add => lhs_val + rhs_val,
                     Operator::Sub => lhs_val - rhs_val,
@@ -145,9 +153,48 @@ impl<'a> TacVm<'a> {
         self.pc = self.pc.next();
     }
 
+    fn trap(&mut self) {
+        self.trapped = true;
+        self.halted = true;
+    }
+
+    pub fn dump(&self) {
+        println!("PC: {:?}", self.pc);
+        let func = &self.program.funcs[self.pc.0.0];
+        let instr = &func.instrs[self.pc.1.0];
+        println!("INSTR: {instr:?}");
+        println!("Stack");
+        for (i, frame) in self.stack.iter().enumerate() {
+            println!("Frame #{i}");
+            eprintln!("    Return PC:  {:?}", frame.return_pc);
+            eprintln!("    Return SSA: {:?}", frame.return_ssa);
+            if !frame.ssa_value.is_empty() {
+                eprintln!("    SSAs:");
+                for (ssa, value) in frame.ssa_value.iter() {
+                    eprintln!("         {ssa} = {value:?}");
+                }
+            }
+            if !frame.locals.is_empty() {
+                eprintln!("    Locals:");
+                for local in &frame.locals {
+                    eprintln!("         {local:?}");
+                }
+            }
+        }
+        println!("--------------------------------------------------------------------------------");
+        println!();
+    }
+
     pub fn run(&mut self) {
-        while !self.halted {
+        loop {
             self.step();
+            if self.debug {
+                self.dump();
+            }
+
+            if self.halted {
+                break;
+            }
         }
     }
 }
