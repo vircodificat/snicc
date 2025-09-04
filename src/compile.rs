@@ -176,6 +176,7 @@ impl Compiler {
                     if_start_block_id,
                 ));
 
+                // if_start_block_id
                 blocks.push(tac::Block {
                     name: format!("{}.{}", &self.current_func_name, blocks.len()).into(),
                     instrs: vec![],
@@ -191,6 +192,7 @@ impl Compiler {
                     .instrs
                     .push(Instr::Goto(if_end_block_id, vec![]));
 
+                // if_end_block_id
                 blocks.push(tac::Block {
                     name: format!("{}.{}", &self.current_func_name, blocks.len()).into(),
                     instrs: vec![],
@@ -261,8 +263,9 @@ impl Compiler {
                     .push(Instr::Store(start_ssa, iter_var_ssa));
                 current_block
                     .instrs
-                    .push(Instr::Goto(loop_cond_block_id, vec![start_ssa]));
+                    .push(Instr::Goto(loop_cond_block_id, vec![]));
 
+                // loop_cond_block_id
                 blocks.push(tac::Block {
                     name: format!("{}.{}", &self.current_func_name, blocks.len()).into(),
                     instrs: vec![],
@@ -287,6 +290,7 @@ impl Compiler {
                     loop_start_block_id,
                 ));
 
+                // loop_start_block_id
                 blocks.push(tac::Block {
                     name: format!("{}.{}", &self.current_func_name, blocks.len()).into(),
                     instrs: vec![],
@@ -319,6 +323,7 @@ impl Compiler {
                     .instrs
                     .push(Instr::Goto(loop_cond_block_id, vec![]));
 
+                // loop_end_block_id
                 blocks.push(tac::Block {
                     name: format!("{}.{}", &self.current_func_name, blocks.len()).into(),
                     instrs: vec![],

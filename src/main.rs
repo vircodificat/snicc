@@ -53,7 +53,7 @@ fn main() -> anyhow::Result<()> {
     println!();
 
     let mut vm = tac_vm::TacVm::new(&tac);
-    vm.run();
+    //vm.run();
 
     let asm = assembler::assemble(&tac);
     eprintln!("{asm:#?}");

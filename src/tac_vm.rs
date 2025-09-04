@@ -197,7 +197,7 @@ impl<'a> TacVm<'a> {
                 self.pc = Pc(self.pc.func(), BlockIdx(block_id.0 as usize), InstrIdx(0));
             }
             tac::Instr::Beqz(ssa, bb_zero, bb_nonzero) => {
-                let frame = &mut self.stack.last_mut().unwrap();
+                let frame = &mut self.stack.last().unwrap();
                 let val = frame.ssa_values.get(ssa).unwrap();
                 self.pc = if *val == Value::I64(0) {
                     self.pc.branch(BlockIdx(bb_zero.0 as usize))
@@ -253,6 +253,7 @@ impl<'a> TacVm<'a> {
             self.dump();
         }
         loop {
+//            std::thread::sleep(std::time::Duration::from_millis(100));
             self.step();
 
             if self.debug {
