@@ -1,5 +1,5 @@
 mod asm;
-//mod assembler;
+mod assembler;
 mod ast;
 mod compile;
 mod lexer;
@@ -11,7 +11,6 @@ use clap::Parser;
 use lalrpop_util::lalrpop_mod;
 
 use crate::ast::*;
-//use crate::tac::*;
 
 use crate::{grammar::ProgramParser, lexer::Lexer};
 lalrpop_mod!(grammar);
@@ -56,14 +55,38 @@ fn main() -> anyhow::Result<()> {
     let mut vm = tac_vm::TacVm::new(&tac);
     vm.run();
 
-    return Ok(());
+    let asm = assembler::assemble(&tac);
+    eprintln!("{asm:#?}");
+    asm.pprint(&mut f);
+    let mut outfile = std::fs::File::create("out.s")?;
+    asm.pprint(&mut outfile);
 
-    //    eprintln!("{tac:#?}");
-    //
-    //    let asm = assembler::assemble(&tac);
-    //    eprintln!("{asm:#?}");
-    //
-    //    Ok(())
+    let output = std::process::Command::new("riscv64-linux-gnu-gcc")
+        .arg("-c")
+        .arg("out.s")
+        .output()
+        .expect("failed to execute process");
+
+    if !output.stderr.is_empty() {
+        println!("{:?}", bstr::BStr::new(&output.stderr));
+    }
+    assert_eq!(output.status.code().unwrap(), 0);
+
+    let output = std::process::Command::new("riscv64-linux-gnu-gcc")
+        .arg("srt.o")
+        .arg("out.o")
+        .arg("-static")
+        .arg("-o")
+        .arg("main")
+        .output()
+        .expect("failed to execute process");
+
+    if !output.stderr.is_empty() {
+        println!("{:?}", bstr::BStr::new(&output.stderr));
+    }
+    assert_eq!(output.status.code().unwrap(), 0);
+
+    Ok(())
 }
 
 fn pos_to_linecol(pos: usize, text: &str) -> (usize, usize) {

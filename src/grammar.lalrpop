@@ -178,6 +178,13 @@ Expr: Box<ast::Expr> = {
             rhs
         })
     },
+    <lhs:Expr> "!=" <rhs:Expr> => {
+        Box::new(ast::Expr::BinaryOperation {
+            lhs,
+            operator: ast::Operator::NotEq,
+            rhs
+        })
+    },
     <lhs:Expr> "<" <rhs:Expr> => {
         Box::new(ast::Expr::BinaryOperation {
             lhs,

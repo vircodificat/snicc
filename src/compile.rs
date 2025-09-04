@@ -18,6 +18,7 @@ pub fn compile(prog: &ast::Program) -> tac::Program {
 struct Compiler {
     idgen: u32,
     variable_ssas: HashMap<BString, Ssa>,
+    current_func_name: BString,
 }
 
 impl Compiler {
@@ -25,6 +26,7 @@ impl Compiler {
         Compiler {
             idgen: 0,
             variable_ssas: HashMap::new(),
+            current_func_name: BString::new(vec![]),
         }
     }
 
@@ -50,8 +52,9 @@ impl Compiler {
 
     fn compile_func(&mut self, func: &ast::FuncDecl) -> tac::Func {
         self.idgen = 0;
-
         self.variable_ssas = HashMap::new();
+        self.current_func_name = func.name.clone();
+
 
         let mut params: Vec<tac::Param> = vec![];
         for name in func.params.clone() {
@@ -61,7 +64,7 @@ impl Compiler {
         }
 
         let mut first_block = tac::Block {
-            name: "BLOCK".into(),
+            name: format!("{}.0", &self.current_func_name).into(),
             instrs: vec![],
             params: params.clone(),
         };
@@ -143,7 +146,7 @@ impl Compiler {
                     .instrs
                     .push(Instr::Goto(loop_start_block_id, vec![]));
                 blocks.push(tac::Block {
-                    name: "BLOCK".into(),
+                    name: format!("{}.{}", &self.current_func_name, blocks.len()).into(),
                     instrs: vec![],
                     params: vec![],
                 });
@@ -155,7 +158,7 @@ impl Compiler {
                     .instrs
                     .push(Instr::Goto(loop_start_block_id, vec![]));
                 blocks.push(tac::Block {
-                    name: "BLOCK".into(),
+                    name: format!("{}.{}", &self.current_func_name, blocks.len()).into(),
                     instrs: vec![],
                     params: vec![],
                 });
@@ -174,7 +177,7 @@ impl Compiler {
                 ));
 
                 blocks.push(tac::Block {
-                    name: "BLOCK".into(),
+                    name: format!("{}.{}", &self.current_func_name, blocks.len()).into(),
                     instrs: vec![],
                     params: vec![],
                 });
@@ -189,7 +192,7 @@ impl Compiler {
                     .push(Instr::Goto(if_end_block_id, vec![]));
 
                 blocks.push(tac::Block {
-                    name: "BLOCK".into(),
+                    name: format!("{}.{}", &self.current_func_name, blocks.len()).into(),
                     instrs: vec![],
                     params: vec![],
                 });
@@ -206,7 +209,7 @@ impl Compiler {
                     .push(Instr::Goto(loop_cond_block_id, vec![]));
 
                 blocks.push(tac::Block {
-                    name: "BLOCK".into(),
+                    name: format!("{}.{}", &self.current_func_name, blocks.len()).into(),
                     instrs: vec![],
                     params: vec![],
                 });
@@ -219,7 +222,7 @@ impl Compiler {
                 ));
 
                 blocks.push(tac::Block {
-                    name: "BLOCK".into(),
+                    name: format!("{}.{}", &self.current_func_name, blocks.len()).into(),
                     instrs: vec![],
                     params: vec![],
                 });
@@ -233,7 +236,7 @@ impl Compiler {
                     .push(Instr::Goto(loop_cond_block_id, vec![]));
 
                 blocks.push(tac::Block {
-                    name: "BLOCK".into(),
+                    name: format!("{}.{}", &self.current_func_name, blocks.len()).into(),
                     instrs: vec![],
                     params: vec![],
                 });
@@ -261,7 +264,7 @@ impl Compiler {
                     .push(Instr::Goto(loop_cond_block_id, vec![start_ssa]));
 
                 blocks.push(tac::Block {
-                    name: "BLOCK".into(),
+                    name: format!("{}.{}", &self.current_func_name, blocks.len()).into(),
                     instrs: vec![],
                     params: vec![],
                 });
@@ -285,7 +288,7 @@ impl Compiler {
                 ));
 
                 blocks.push(tac::Block {
-                    name: "BLOCK".into(),
+                    name: format!("{}.{}", &self.current_func_name, blocks.len()).into(),
                     instrs: vec![],
                     params: vec![],
                 });
@@ -317,7 +320,7 @@ impl Compiler {
                     .push(Instr::Goto(loop_cond_block_id, vec![]));
 
                 blocks.push(tac::Block {
-                    name: "BLOCK".into(),
+                    name: format!("{}.{}", &self.current_func_name, blocks.len()).into(),
                     instrs: vec![],
                     params: vec![],
                 });

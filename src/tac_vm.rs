@@ -184,6 +184,7 @@ impl<'a> TacVm<'a> {
                     Operator::Mul => lhs_val * rhs_val,
                     Operator::Div => lhs_val / rhs_val,
                     Operator::Eq => (lhs_val == rhs_val) as i64,
+                    Operator::NotEq => (lhs_val != rhs_val) as i64,
                     Operator::Lt => (lhs_val < rhs_val) as i64,
                     Operator::Gt => (lhs_val > rhs_val) as i64,
                     Operator::LtEq => (lhs_val <= rhs_val) as i64,

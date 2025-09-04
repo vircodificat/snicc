@@ -54,6 +54,7 @@ pub enum Operator {
     Mul,
     Div,
     Eq,
+    NotEq,
     Lt,
     Gt,
     LtEq,

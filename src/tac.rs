@@ -191,3 +191,21 @@ impl Block {
         Ok(())
     }
 }
+
+impl Instr {
+    pub fn dst(&self) -> Option<Ssa> {
+        match self {
+            Instr::Alloca(ssa, _, bstring) => Some(*ssa),
+            Instr::Call(ssa, bstring, ssas) => Some(*ssa),
+            Instr::Exit => None,
+            Instr::Ret(ssa) => Some(*ssa),
+            Instr::Const(ssa, _) => Some(*ssa),
+            Instr::Load(ssa, ssa1) => Some(*ssa),
+            Instr::Store(ssa, ssa1) => None,
+            Instr::Print(_ssa) => None,
+            Instr::Beqz(ssa, block_id, block_id1) => Some(*ssa),
+            Instr::BinOp(ssa, operator, ssa1, ssa2) => Some(*ssa),
+            Instr::Goto(block_id, ssas) => None,
+        }
+    }
+}
